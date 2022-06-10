@@ -8,8 +8,11 @@
 const mongoose = require("mongoose")
 const productSchema = new mongoose.Schema({
     name: String,
-    email: String,
-    password: String,
+    price: Number,
+    company: String,
+    category: String,
+    description: String,
+    userID: String,
 })
 
 module.exports = mongoose.model("products",productSchema)
