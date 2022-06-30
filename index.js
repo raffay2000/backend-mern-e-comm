@@ -6,6 +6,7 @@ const Product = require("./db/product");
 const app = express();
 const jwt = require("jsonwebtoken");
 const jwtKey = "my_secret_key";
+// console.log(User);
 
 app.use(express.json());
 // cors is used to allow cross origin resource sharing
@@ -13,37 +14,40 @@ app.use(cors());
 // this is register API to register a new user
 app.post("/register", async (req, res) => {
   const data = req.body;
-  // make 
+  // make
   const user = new User(data);
   let result = await user.save();
   result = result.toObject();
   delete result.password;
   if (result) {
-    jwt.sign({result},jwtKey,{expiresIn:"2h"},(err,token)=>{
-      if(err){
-          res.send({result:"error in signing token"})
-      }else{
-          res.send({result,auth:token})
+    // if(user){
+
+    // }
+    jwt.sign({ result }, jwtKey, { expiresIn: "2h" }, (err, token) => {
+      if (err) {
+        res.send({ result: "error in JWT token" });
+      } else {
+        res.send({ result, auth: token });
       }
-  })
-  }else{
-        res.send({result:"error in saving user"})
+    });
+  } else {
+    res.send({ result: "error in saving user" });
   }
 });
-// this is login API to login a user 
+// this is login API to login a user
 app.post("/login", async (req, res) => {
   let data = req.body;
   let user = await User.findOne(data).select("-password");
   if (req.body.email && req.body.password) {
     if (user) {
-        jwt.sign({user},jwtKey,{expiresIn:"2h"},(err,token)=>{
-            if(err){
-                res.send({result:"error in signing token"})
-            }else{
-                res.send({user,auth:token})
-            }
-        })
-    //   res.send(user);
+      jwt.sign({ user }, jwtKey, { expiresIn: "2h" }, (err, token) => {
+        if (err) {
+          res.send({ result: "error in signing token" });
+        } else {
+          res.send({ user, auth: token });
+        }
+      });
+      //   res.send(user);
     } else {
       res.send({ result: "Wrong email or password" });
     }
@@ -53,7 +57,7 @@ app.post("/login", async (req, res) => {
 });
 // this is to add products API to to add products
 // create
-app.post("/add-product", async (req, res) => {
+app.post("/add-product", middleware,async (req, res) => {
   const data = req.body;
   const product = new Product(data);
   let result = await product.save();
@@ -61,8 +65,9 @@ app.post("/add-product", async (req, res) => {
 });
 // this is get all products API to get all products
 // read
-app.get("/products", async (req, res) => {
+app.get("/products", middleware,async (req, res) => {
   let result = await Product.find();
+  console.log(result[0].userID);
   if (result.length > 0) {
     res.send(result);
   } else {
@@ -71,7 +76,7 @@ app.get("/products", async (req, res) => {
 });
 // this is to delete product api to delete product
 // delete
-app.delete("/product/:id", async (req, res) => {
+app.delete("/product/:id",middleware, async (req, res) => {
   let result = await Product.findByIdAndDelete({ _id: req.params.id });
   if (result) {
     res.send(result);
@@ -81,7 +86,7 @@ app.delete("/product/:id", async (req, res) => {
 });
 // this is to get single product API
 // Read
-app.get("/product/:id", async (req, res) => {
+app.get("/product/:id", middleware,async (req, res) => {
   let result = await Product.findOne({ _id: req.params.id });
   if (result) {
     res.send(result);
@@ -90,7 +95,7 @@ app.get("/product/:id", async (req, res) => {
   }
 });
 // this is to update product API
-app.put("/product/:id", async (req, res) => {
+app.put("/product/:id",middleware, async (req, res) => {
   let result = await Product.updateOne(
     { _id: req.params.id },
     {
@@ -104,11 +109,11 @@ app.put("/product/:id", async (req, res) => {
   }
 });
 // this is to get search product API
-app.get("/search/:key", async (req, res) => {
+app.get("/search/:key", middleware, async (req, res) => {
   let result = await Product.find({
     $or: [
       { name: { $regex: req.params.key } },
-      { price: { $regex: req.params.key }},
+      { price: { $regex: req.params.key } },
       { company: { $regex: req.params.key } },
       { category: { $regex: req.params.key } },
       { description: { $regex: req.params.key } },
@@ -120,20 +125,24 @@ app.get("/search/:key", async (req, res) => {
     res.send({ result: "No product found" });
   }
 });
-const middleware = (req, res, next) => {
-    let token = req.headers.authorization;
-    if(token){
-        jwt.verify(token,jwtKey,(err,decoded)=>{
-            if(err){
-                res.send({result:"error in verifying token"})
-            }else{
-                // req.user = decoded;
-                next();
-            }
-        })
-    }else{
-        res.send({result:"no token"})
-    }
+// this ismiddleware to verify tokem
+function middleware(req, res, next) {
+  let token = req.headers["authorization"];
+  if (token) {
+    token = token.split(" ")[1];
+    console.log(token);
+    jwt.verify(token, jwtKey, (err, decoded) => {
+      if (err) {
+        res.status(401).send({ result: "Token is not verified" });
+      } else {
+        // req.user = decoded;
+        next();
+      }
+    });
+    // next();
+  } else {
+    res.status(403).send({ result: "Tokem is missing" });
+  }
 }
 app.listen(8000, () => {
   console.log("Example app listening at http://localhost:8000");
